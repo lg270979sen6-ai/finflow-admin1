@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinFlow · Админ панель</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<style>
+:root {
+  --bg:#0d0f14; --s1:#161a22; --s2:#1e2330; --s3:#252d3d;
+  --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
+  --text:#fff; --text2:#a0aabb; --text3:#5a6478;
+  --accent:#6c8dfa; --red:#ff6b6b; --green:#4ecca3; --orange:#ffa94d;
+  --purple:#b197fc; --pink:#ff87b2;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);}
+body{display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── LOGIN SCREEN ── */
+.login-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-card{background:var(--s1);border:1px solid var(--border2);border-radius:24px;padding:40px 36px;width:100%;max-width:380px;}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.login-logo-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);}
+.login-logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:24px;}
+.login-sub{font-size:12px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:32px;}
+.login-label{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
+.login-input{width:100%;padding:13px 16px;background:var(--s2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;transition:border-color .2s;margin-bottom:16px;}
+.login-input:focus{border-color:var(--accent);}
+.login-btn{width:100%;padding:14px;border-radius:12px;background:var(--accent);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:0 4px 20px rgba(108,141,250,.35);}
+.login-btn:hover{background:#7d9dfb;transform:translateY(-1px);}
+.login-err{font-size:12px;color:var(--red);text-align:center;margin-top:10px;min-height:16px;}
+.glow{position:absolute;top:-30%;left:50%;transform:translateX(-50%);width:500px;height:500px;background:radial-gradient(ellipse,rgba(108,141,250,.1) 0%,transparent 70%);pointer-events:none;}
+
+/* ── LAYOUT ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;}
+.topbar-logo{display:flex;align-items:center;gap:8px;}
+.topbar-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+.topbar-title{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;}
+.topbar-badge{background:rgba(108,141,250,.15);color:var(--accent);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.08em;text-transform:uppercase;}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+.sync-dot.offline{background:var(--red);}
+.sync-text{font-size:12px;color:var(--text3);}
+.logout-btn{padding:7px 14px;border-radius:8px;background:var(--s2);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s;}
+.logout-btn:hover{border-color:var(--border2);color:var(--text);}
+
+.main{flex:1;padding:28px;overflow-y:auto;max-width:1100px;width:100%;margin:0 auto;}
+
+/* ── SECTION ── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.section-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;}
+.section-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.btn{padding:9px 18px;border-radius:10px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 3px 14px rgba(108,141,250,.3);}
+.btn-primary:hover{background:#7d9dfb;transform:translateY(-1px);}
+.btn-danger{background:rgba(255,107,107,.12);color:var(--red);border:1px solid rgba(255,107,107,.2);}
+.btn-danger:hover{background:rgba(255,107,107,.2);}
+.btn-secondary{background:var(--s2);color:var(--text2);border:1px solid var(--border);}
+.btn-secondary:hover{border-color:var(--border2);color:var(--text);}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px;}
+
+/* ── ACCOUNTS GRID ── */
+.accounts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:40px;}
+.account-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:20px;transition:border-color .2s;}
+.account-card:hover{border-color:var(--border2);}
+.account-card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.account-icon{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#fff;flex-shrink:0;}
+.account-name{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;}
+.account-room{font-size:11px;color:var(--text3);margin-top:2px;font-family:monospace;}
+.account-actions{display:flex;gap:6px;margin-left:auto;}
+
+/* ── USERS TABLE ── */
+.users-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.user-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s2);border-radius:12px;}
+.user-avatar{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;}
+.user-name{font-size:14px;font-weight:500;flex:1;}
+.user-login{font-size:11px;color:var(--text3);font-family:monospace;}
+.role-badge{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.04em;}
+.role-admin{background:rgba(108,141,250,.15);color:var(--accent);}
+.role-editor{background:rgba(78,204,163,.12);color:var(--green);}
+.role-viewer{background:rgba(90,100,120,.2);color:var(--text3);}
+.add-user-row{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px dashed var(--border);border-radius:12px;cursor:pointer;transition:all .2s;color:var(--text3);font-size:13px;}
+.add-user-row:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:28px;width:100%;max-width:400px;}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:6px;}
+.modal-sub{font-size:13px;color:var(--text3);margin-bottom:24px;}
+.form-group{margin-bottom:16px;}
+.form-label{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;display:block;}
+.form-input{width:100%;padding:12px 14px;background:var(--s2);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;}
+.form-input:focus{border-color:var(--accent);}
+.form-row{display:flex;gap:10px;}
+.form-row .form-group{flex:1;}
+.role-select{width:100%;padding:12px 14px;background:var(--s2);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;cursor:pointer;}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:24px;}
+.color-picker-row{display:flex;gap:8px;flex-wrap:wrap;}
+.color-dot{width:28px;height:28px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all .15s;}
+.color-dot.selected{border-color:#fff;transform:scale(1.15);}
+
+/* ── STATS BAR ── */
+.stats-bar{display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap;}
+.stat-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:16px 20px;flex:1;min-width:140px;}
+.stat-num{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;}
+.stat-label{font-size:12px;color:var(--text3);margin-top:2px;}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.empty-text{font-size:14px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--s1);border:1px solid var(--border2);border-radius:12px;padding:10px 20px;font-size:13px;font-weight:500;transition:transform .3s;z-index:9999;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .4s ease both;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="glow"></div>
+  <div class="login-card fade-in">
+    <div class="login-logo"><div class="login-logo-dot"></div><div class="login-logo-text">FinFlow</div></div>
+    <div class="login-sub">Панель администратора</div>
+    <div style="font-size:11px;color:#5a6478;margin-bottom:20px;background:#1e2330;border-radius:8px;padding:8px 12px;">
+      🔐 Первый вход: пароль <b style="color:#a0aabb;">setup1234</b><br>
+      Смените его сразу после входа
+    </div>
+    <div class="login-label">Мастер-пароль</div>
+    <input id="masterInput" class="login-input" type="password" placeholder="Введите мастер-пароль"
+      onkeydown="if(event.key==='Enter')adminLogin()">
+    <button class="login-btn" onclick="adminLogin()">Войти в панель</button>
+    <div id="loginErr" class="login-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="adminApp" style="display:none;flex-direction:column;height:100vh;">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-dot"></div>
+      <div class="topbar-title">FinFlow</div>
+      <div class="topbar-badge">Superadmin</div>
+    </div>
+    <div class="topbar-right">
+      <div class="sync-dot" id="syncDot"></div>
+      <div class="sync-text" id="syncText">Подключение...</div>
+      <button class="logout-btn" onclick="adminLogout()">Выйти</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- System settings -->
+    <div id="systemSection" style="background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:20px 24px;margin-bottom:28px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:gap;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:3px;">⚙️ Системные настройки</div>
+          <div style="font-size:12px;color:var(--text3);">Мастер-пароль хранится в Firebase — можно изменить в любой момент</div>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:8px;" onclick="openChangeMasterPass()">🔑 Изменить мастер-пароль</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-card"><div class="stat-num" id="statAccounts">—</div><div class="stat-label">Аккаунтов</div></div>
+      <div class="stat-card"><div class="stat-num" id="statUsers">—</div><div class="stat-label">Пользователей</div></div>
+      <div class="stat-card"><div class="stat-num" id="statAdmins">—</div><div class="stat-label">Администраторов</div></div>
+    </div>
+
+    <!-- Accounts -->
+    <div class="section-header">
+      <div>
+        <div class="section-title">Аккаунты</div>
+        <div class="section-sub">Каждый аккаунт — отдельный бюджет с изолированными данными</div>
+      </div>
+      <button class="btn btn-primary" onclick="openCreateAccount()">＋ Новый аккаунт</button>
+    </div>
+    <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="resetAllAccountsCategories()" style="font-size:13px">🔄 Скинути категорії всіх акаунтів</button>
+    </div>
+    <div class="accounts-grid" id="accountsGrid">
+      <div class="empty"><div class="empty-icon">📂</div><div class="empty-text">Загрузка...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: Create Account -->
+<div class="modal-overlay" id="modalAccount">
+  <div class="modal">
+    <div class="modal-title" id="modalAccountTitle">Новый аккаунт</div>
+    <div class="modal-sub">Аккаунт — это отдельный изолированный бюджет</div>
+    <div class="form-group">
+      <label class="form-label">ID аккаунта (латиница, без пробелов)</label>
+      <input class="form-input" id="accId" placeholder="например: family-bogdan" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Название аккаунта</label>
+      <input class="form-input" id="accName" placeholder="Семья Богдана">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Цвет аккаунта</label>
+      <div class="color-picker-row" id="accColorPicker"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalAccount')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveAccount()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add/Edit User -->
+<div class="modal-overlay" id="modalUser">
+  <div class="modal">
+    <div class="modal-title" id="modalUserTitle">Добавить пользователя</div>
+    <div class="modal-sub" id="modalUserSub">В аккаунт</div>
+    <div class="form-group">
+      <label class="form-label">Имя</label>
+      <input class="form-input" id="userName" placeholder="Богдан">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Логин</label>
+        <input class="form-input" id="userLogin" placeholder="bogdan" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Пароль</label>
+        <input class="form-input" id="userPassword" placeholder="минимум 3 символа">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Роль</label>
+      <select class="role-select" id="userRole">
+        <option value="admin">🔑 Администратор — полный доступ + управление пользователями</option>
+        <option value="editor">✏️ Редактор — добавление и редактирование расходов</option>
+        <option value="viewer">👁 Читатель — только просмотр</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Цвет аватара</label>
+      <div class="color-picker-row" id="userColorPicker"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalUser')">Отмена</button>
+      <button class="btn btn-primary" id="saveUserBtn" onclick="saveUser()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════
+const FB_CONFIG = {
+  apiKey: "AIzaSyBZ1b6yf1WQbhZ7lhIbeYw_fKc4k88mmFc",
+  authDomain: "family-budget-32149.firebaseapp.com",
+  databaseURL: "https://family-budget-32149-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "family-budget-32149",
+  storageBucket: "family-budget-32149.firebasestorage.app",
+  messagingSenderId: "1015461302295",
+  appId: "1:1015461302295:web:835d7a14a852c224534c52"
+};
+const FB_URL = FB_CONFIG.databaseURL;
+// Мастер-пароль хранится в Firebase: finflow_meta/_system/master_password
+// При первом запуске используется временный пароль: setup1234
+
+const COLORS = ['#6c8dfa','#ff87b2','#4ecca3','#ffa94d','#b197fc','#ff6b6b','#ffd43b','#38bdf8','#f472b6','#34d399','#fb923c','#a78bfa'];
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let db       = null;
+let metaRef  = null;
+let accounts = {}; // { accId: { name, color, users: { userId: {name,login,password,role,color} } } }
+let _editingAccId   = null;
+let _editingUserId  = null;
+let _addingToAccId  = null;
+let _selAccColor    = COLORS[0];
+let _selUserColor   = COLORS[1];
+
+// ══════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════
+function adminLogin(){
+  const val = document.getElementById('masterInput').value.trim();
+  if(!val) return;
+  const btn = document.querySelector('.login-btn');
+  btn.textContent = 'Подключение...';
+  btn.disabled = true;
+  document.getElementById('loginErr').textContent = '';
+
+  // Step 1: destroy old Firebase apps
+  Promise.all(firebase.apps.map(a => a.delete().catch(()=>{}))).then(() => {
+
+    // Step 2: init fresh Firebase app
+    firebase.initializeApp(Object.assign({}, FB_CONFIG));
+    const tempDb   = firebase.database();
+    const tempAuth = firebase.auth();
+
+    // Step 3: sign in anonymously, wait for confirmed user
+    tempAuth.signInAnonymously().then(cred => {
+      const user = cred.user;
+      // Step 4: force token so Firebase SDK attaches it to requests
+      return user.getIdToken(true);
+    }).then(() => {
+      // Step 5: now read password — auth token is active
+      return tempDb.ref('finflow_meta/_admin/master_password').once('value');
+    }).then(snap => {
+      const stored = String(snap.val() || '');
+      if(!stored || val === stored){
+        localStorage.setItem('ff_adm', val);
+        db = tempDb;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('adminApp').style.display = 'flex';
+        afterFirebaseInit();
+      } else {
+        document.getElementById('loginErr').textContent = '❌ Неверный пароль';
+        setTimeout(()=>document.getElementById('loginErr').textContent='', 3000);
+        btn.textContent = 'Войти в панель';
+        btn.disabled = false;
+        tempDb.app.delete().catch(()=>{});
+      }
+    }).catch(err => {
+      console.error('Login error:', err.message);
+      // Fallback: try cached password
+      const cached = localStorage.getItem('ff_adm');
+      if(cached && val === cached){
+        db = firebase.database();
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('adminApp').style.display = 'flex';
+        afterFirebaseInit();
+      } else {
+        document.getElementById('loginErr').textContent = '❌ ' + err.message;
+        btn.textContent = 'Войти в панель';
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+
+function adminLogout(){
+  if(db){ try{ db.ref('.info/connected').off(); }catch(e){} }
+  try{ firebase.apps.forEach(a=>a.delete()); }catch(e){}
+  db = null; metaRef = null; accounts = {};
+  document.getElementById('adminApp').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('masterInput').value = '';
+  document.querySelector('.login-btn').textContent = 'Войти в панель';
+  document.querySelector('.login-btn').disabled = false;
+}
+
+function openChangeMasterPass(){
+  const cur = prompt('Текущий мастер-пароль:');
+  if(!cur) return;
+  // Verify current password against Firebase
+  db.ref('finflow_meta/_admin/master_password').once('value').then(snap=>{
+    const stored = snap.val() || 'setup1234';
+    if(cur !== stored){ showToast('❌ Неверный текущий пароль'); return; }
+    const np1 = prompt('Новый мастер-пароль (минимум 6 символов):');
+    if(!np1 || np1.length < 6){ showToast('❌ Минимум 6 символов'); return; }
+    const np2 = prompt('Повторите новый пароль:');
+    if(np1 !== np2){ showToast('❌ Пароли не совпадают'); return; }
+    db.ref('finflow_meta/_admin/master_password').set(np1).then(()=>{
+      showToast('✅ Мастер-пароль изменён!');
+    });
+  });
+}
+
+document.getElementById('masterInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter') adminLogin();
+});
+
+// ══════════════════════════════════════
+//  FIREBASE
+// ══════════════════════════════════════
+function afterFirebaseInit(){
+  metaRef = db.ref('finflow_meta');
+
+  db.ref('.info/connected').on('value', snap=>{
+    const dot  = document.getElementById('syncDot');
+    const text = document.getElementById('syncText');
+    if(snap.val()){
+      dot.className  = 'sync-dot';
+      text.textContent = 'Подключено к Firebase';
+    } else {
+      dot.className  = 'sync-dot offline';
+      text.textContent = 'Нет соединения';
+    }
+  });
+
+  // Wait for auth to be ready, then listen to accounts
+  const SKIP_KEYS = ['_system', '_admin'];
+  const startListening = () => {
+    metaRef.on('value', snap=>{
+      accounts = {};
+      const data = snap.val() || {};
+      console.log('finflow_meta data:', JSON.stringify(Object.keys(data)));
+      Object.entries(data).forEach(([accId, accData])=>{
+        if(SKIP_KEYS.includes(accId)) return;
+        if(typeof accData !== 'object' || !accData) return;
+        console.log('account:', accId, accData);
+        accounts[accId] = {
+          name:  accData.name  || accId,
+          color: accData.color || COLORS[0],
+          users: accData.users || {},
+        };
+      });
+      renderAccounts();
+      updateStats();
+    }, err => {
+      console.error('metaRef error:', err.message);
+      document.getElementById('accountsGrid').innerHTML =
+        '<div style="color:#ff6b6b;padding:20px">❌ Ошибка: ' + err.message + '</div>';
+    });
+  };
+
+  // Auth already confirmed by login flow — start listening immediately
+  startListening();
+}
+
+// ══════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════
+function updateStats(){
+  let totalUsers = 0, totalAdmins = 0;
+  Object.values(accounts).forEach(acc=>{
+    Object.values(acc.users||{}).forEach(u=>{
+      totalUsers++;
+      if(u.role==='admin') totalAdmins++;
+    });
+  });
+  document.getElementById('statAccounts').textContent = Object.keys(accounts).length;
+  document.getElementById('statUsers').textContent    = totalUsers;
+  document.getElementById('statAdmins').textContent   = totalAdmins;
+}
+
+function roleLabel(role){
+  return {admin:'Администратор', editor:'Редактор', viewer:'Читатель'}[role] || role;
+}
+function roleBadgeClass(role){
+  return {admin:'role-admin', editor:'role-editor', viewer:'role-viewer'}[role] || 'role-viewer';
+}
+
+function renderAccounts(){
+  const grid = document.getElementById('accountsGrid');
+  const accList = Object.entries(accounts);
+  if(!accList.length){
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">📂</div><div class="empty-text">Нет аккаунтов — создайте первый</div></div>`;
+    return;
+  }
+  grid.innerHTML = accList.map(([accId, acc])=>{
+    const users = Object.entries(acc.users||{});
+    const userRows = users.map(([uid, u])=>`
+      <div class="user-row">
+        <div class="user-avatar" style="background:${u.color||COLORS[2]}">${(u.name||'?')[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <div class="user-name">${u.name||'—'}</div>
+          <div class="user-login">${u.login||uid}</div>
+        </div>
+        <span class="role-badge ${roleBadgeClass(u.role)}">${roleLabel(u.role)}</span>
+        <button class="btn btn-secondary btn-sm" onclick="openEditUser('${accId}','${uid}')" title="Редактировать">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteUser('${accId}','${uid}','${(u.name||'').replace(/'/g,'')}')">🗑</button>
+      </div>
+    `).join('');
+
+    return `
+    <div class="account-card fade-in">
+      <div class="account-card-header">
+        <div class="account-icon" style="background:${acc.color}">${(acc.name||accId)[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <div class="account-name">${acc.name}</div>
+          <div class="account-room">ID: ${accId}</div>
+        </div>
+        <div class="account-actions">
+          <button class="btn btn-danger btn-sm" onclick="deleteAccount('${accId}','${(acc.name||'').replace(/'/g,'')}')">🗑</button>
+        </div>
+      </div>
+      <div class="users-list">
+        ${userRows}
+        <div class="add-user-row" onclick="openAddUser('${accId}')">
+          <span style="font-size:16px">＋</span> Добавить пользователя
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  RESET CATEGORIES
+// ══════════════════════════════════════
+function resetAllAccountsCategories(){
+  if(!confirm('Скинути категорії для ВСІХ акаунтів? Власні категорії та порядок будуть видалені.')) return;
+  const accIds = Object.keys(accounts);
+  if(!accIds.length){ alert('Немає акаунтів'); return; }
+  let done = 0;
+  accIds.forEach(accId => {
+    db.ref('finflow/' + accId + '/cfg').once('value').then(snap => {
+      const cfg = snap.val() || {};
+      // Remove category-related fields — app will reload defaults
+      delete cfg.customCats;
+      delete cfg.catOrder;
+      delete cfg.catColors;
+      db.ref('finflow/' + accId + '/cfg').set(cfg).then(() => {
+        done++;
+        if(done === accIds.length){
+          alert('✅ Категорії скинуті для всіх ' + done + ' акаунтів. При наступному вході користувачі побачать нові стандартні категорії.');
+        }
+      });
+    });
+  });
+}
+
+// ══════════════════════════════════════
+//  ACCOUNT CRUD
+// ══════════════════════════════════════
+function openCreateAccount(){
+  _editingAccId = null;
+  document.getElementById('accId').value   = '';
+  document.getElementById('accName').value = '';
+  document.getElementById('accId').disabled = false;
+  document.getElementById('modalAccountTitle').textContent = 'Новый аккаунт';
+  _selAccColor = COLORS[0];
+  renderColorPicker('accColorPicker', COLORS, _selAccColor, c=>{ _selAccColor=c; });
+  openModal('modalAccount');
+}
+
+function saveAccount(){
+  const id   = document.getElementById('accId').value.trim();
+  const name = document.getElementById('accName').value.trim();
+  if(!id)  { showToast('❌ Введите ID аккаунта'); return; }
+  if(!name){ showToast('❌ Введите название'); return; }
+  if(!_editingAccId && accounts[id]){ showToast('❌ Аккаунт с таким ID уже существует'); return; }
+
+  const accData = { name, color: _selAccColor };
+  if(_editingAccId){
+    metaRef.child(_editingAccId).update(accData);
+    showToast(`✅ Аккаунт «${name}» обновлён`);
+  } else {
+    metaRef.child(id).set(accData);
+    showToast(`✅ Аккаунт «${name}» создан`);
+  }
+  closeModal('modalAccount');
+}
+
+function deleteAccount(accId, accName){
+  if(!confirm(`Удалить аккаунт «${accName}»?\n\nВНИМАНИЕ: Все данные бюджета этого аккаунта также будут удалены!`)) return;
+  metaRef.child(accId).remove();
+  db.ref('finflow/'+accId).remove();
+  showToast(`🗑 Аккаунт «${accName}» удалён`);
+}
+
+// ══════════════════════════════════════
+//  USER CRUD
+// ══════════════════════════════════════
+function openAddUser(accId){
+  _addingToAccId = accId;
+  _editingUserId = null;
+  const acc = accounts[accId];
+  document.getElementById('modalUserTitle').textContent = 'Новый пользователь';
+  document.getElementById('modalUserSub').textContent   = `Аккаунт: ${acc.name}`;
+  document.getElementById('userName').value     = '';
+  document.getElementById('userLogin').value    = '';
+  document.getElementById('userPassword').value = '';
+  document.getElementById('userRole').value     = 'editor';
+  document.getElementById('saveUserBtn').textContent = 'Добавить';
+  _selUserColor = COLORS[Math.floor(Math.random()*COLORS.length)];
+  renderColorPicker('userColorPicker', COLORS, _selUserColor, c=>{ _selUserColor=c; });
+  openModal('modalUser');
+}
+
+function openEditUser(accId, userId){
+  _addingToAccId = accId;
+  _editingUserId = userId;
+  const u = accounts[accId].users[userId];
+  const acc = accounts[accId];
+  document.getElementById('modalUserTitle').textContent = 'Редактировать пользователя';
+  document.getElementById('modalUserSub').textContent   = `Аккаунт: ${acc.name}`;
+  document.getElementById('userName').value     = u.name  || '';
+  document.getElementById('userLogin').value    = u.login || userId;
+  document.getElementById('userPassword').value = u.password || '';
+  document.getElementById('userRole').value     = u.role  || 'editor';
+  document.getElementById('saveUserBtn').textContent = 'Сохранить';
+  _selUserColor = u.color || COLORS[0];
+  renderColorPicker('userColorPicker', COLORS, _selUserColor, c=>{ _selUserColor=c; });
+  openModal('modalUser');
+}
+
+function saveUser(){
+  const name     = document.getElementById('userName').value.trim();
+  const login    = document.getElementById('userLogin').value.trim();
+  const password = document.getElementById('userPassword').value.trim();
+  const role     = document.getElementById('userRole').value;
+  if(!name)    { showToast('❌ Введите имя'); return; }
+  if(!login)   { showToast('❌ Введите логин'); return; }
+  if(!password || password.length < 3){ showToast('❌ Пароль минимум 3 символа'); return; }
+
+  const userId   = _editingUserId || login;
+  const userData = { name, login, password, role, color: _selUserColor };
+  metaRef.child(_addingToAccId).child('users').child(userId).set(userData);
+  showToast(`✅ Пользователь «${name}» ${_editingUserId ? 'обновлён' : 'добавлен'}`);
+  closeModal('modalUser');
+}
+
+function deleteUser(accId, userId, userName){
+  if(!confirm(`Удалить пользователя «${userName}»?`)) return;
+  metaRef.child(accId).child('users').child(userId).remove();
+  showToast(`🗑 Пользователь «${userName}» удалён`);
+}
+
+// ══════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════
+function renderColorPicker(containerId, colors, selected, onChange){
+  const el = document.getElementById(containerId);
+  el.innerHTML = colors.map(c=>`
+    <div class="color-dot ${c===selected?'selected':''}" style="background:${c}"
+      onclick="selectColor('${containerId}','${c}')"></div>
+  `).join('');
+  el._onChange = onChange;
+}
+
+function selectColor(containerId, color){
+  const el = document.getElementById(containerId);
+  el.querySelectorAll('.color-dot').forEach(d=>{
+    d.classList.toggle('selected', d.style.background===color || d.style.backgroundColor===color);
+  });
+  if(el._onChange) el._onChange(color);
+  if(containerId==='accColorPicker')  _selAccColor  = color;
+  if(containerId==='userColorPicker') _selUserColor = color;
+}
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click', e=>{ if(e.target===o) closeModal(o.id); });
+});
+
+// Auto-focus on login
+window.addEventListener('load', ()=>{ document.getElementById('masterInput').focus(); });
+</script>
+</body>
+</html>
